@@ -1,7 +1,11 @@
 import gc
+import http
+import objgraph
+
+from werkzeug.wrappers import Response
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from goldeneye.metrics import Metrics
-import objgraph
 
 
 class MoneyPenny:
@@ -20,3 +24,19 @@ class MoneyPenny:
             Metrics.ObjectsInMemory.labels(obj).set(cnt)
 
         return response
+
+
+class MMetricsMiddleware:
+    def __init__(self, app, *args, **kwargs):
+        self.app = app
+        super(MProxyMiddleware, self).__init__(*args, **kwargs)
+
+    def __call__(self, environ, start_response):
+        path = environ['PATH_INFO']
+
+        if path == '/metrics':
+            return Response(generate_latest(),
+                            content_type=CONTENT_TYPE_LATEST,
+                            status=http.HTTPStatus.OK)(environ, start_response)
+
+        return self.app(environ, start_response)
